@@ -1,4 +1,5 @@
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -21,6 +22,23 @@ public class Main {
         COMMANDS.put("pwd", args -> {
             System.out.println(currentPath.toAbsolutePath());
         });
+        COMMANDS.put("cd", Main::handleCd);
+    }
+
+    private static void handleCd(String[] args) {
+        if (args.length == 0) {
+            return;
+        }
+
+        String target = args[0];
+
+        Path newPath = currentPath.resolve(target); // take the absolute path as it is
+        // This handles both absolute and relative paths
+        if (Files.isDirectory(newPath)) {
+            currentPath = newPath;
+        } else {
+            System.out.println("cd: " + target + ": No such file or directory");
+        }
     }
 
     private static File getExecutablePath(String cmd) {
