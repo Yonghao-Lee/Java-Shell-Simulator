@@ -2,14 +2,16 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Main {
     // System.getProperty("user.dir") retrieves the current working dir of the Java app as a String
     // Then Paths.get() converts the String into a nio.file.Path object
-    private static Path currentPath = Paths.get(System.getProperty("user.dir")); //
+    private static Path currentPath = Paths.get(System.getProperty("user.dir"))
+            .toAbsolutePath()
+            .normalize();
     private static final Map<String, Command> COMMANDS = new HashMap<>();
 
     static {
@@ -26,19 +28,19 @@ public class Main {
     }
 
     private static void handleCd(String[] args) {
-        if (args.length == 0) {
-            return;
+        String homeDir = System.getenv("HOME");
+        if (homeDir == null ) {
+            homeDir = System.getProperty("user.home");
         }
+        String target = (args.length == 0 || args[0].equals("~")) ? homeDir : args[0];
 
-        String target = args[0];
-
-        Path newPath = currentPath.resolve(target); // take the absolute path as it is
-        // This handles both absolute and relative paths
+        Path newPath = currentPath.resolve(target).toAbsolutePath().normalize();        // This handles both absolute and relative paths
         if (Files.isDirectory(newPath)) {
-            currentPath = newPath;
+            currentPath = newPath.normalize();
         } else {
             System.out.println("cd: " + target + ": No such file or directory");
         }
+
     }
 
     private static File getExecutablePath(String cmd) {
@@ -75,7 +77,15 @@ public class Main {
             if (input.isEmpty()) continue;
 
             // Split into command and args
-            String[] fullArgs = input.split("\\s+"); // Multiple args
+            List<String> list = new ArrayList<>();
+            // Use robust regex
+            String patternString = "([^\"]\\S*|\".+?\")\\s*";
+            Pattern pattern = Pattern.compile(patternString);
+            Matcher matcher = pattern.matcher(input);
+            while (matcher.find()) {
+                list.add(matcher.group(1).replaceAll("\"", ""));
+            }
+            String[] fullArgs = list.toArray(new String[0]);
             String cmdName = fullArgs[0];
             String[] cmdArgs = new String[fullArgs.length - 1];
             System.arraycopy(fullArgs, 1, cmdArgs, 0, fullArgs.length - 1);
