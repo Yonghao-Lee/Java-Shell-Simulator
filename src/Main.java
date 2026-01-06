@@ -1,16 +1,26 @@
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
 public class Main {
+    // System.getProperty("user.dir") retrieves the current working dir of the Java app as a String
+    // Then Paths.get() converts the String into a nio.file.Path object
+    private static Path currentPath = Paths.get(System.getProperty("user.dir")); //
     private static final Map<String, Command> COMMANDS = new HashMap<>();
 
     static {
         // Register commands here
         COMMANDS.put("exit", args -> System.exit(0));
-        COMMANDS.put("echo", System.out::println);
-        COMMANDS.put("type", args -> { if(args.length > 0) handleType(args[0]);});
+        COMMANDS.put("echo", args -> System.out.println(String.join(" ", args)));
+        COMMANDS.put("type", args -> {
+            if(args.length > 0) handleType(args[0]);
+        });
+        COMMANDS.put("pwd", args -> {
+            System.out.println(currentPath.toAbsolutePath());
+        });
     }
 
     private static File getExecutablePath(String cmd) {
