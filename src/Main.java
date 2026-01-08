@@ -3,8 +3,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class Main {
     // System.getProperty("user.dir") retrieves the current working dir of the Java app as a String
@@ -19,7 +17,7 @@ public class Main {
         COMMANDS.put("exit", args -> System.exit(0));
         COMMANDS.put("echo", args -> System.out.println(String.join(" ", args)));
         COMMANDS.put("type", args -> {
-            if(args.length > 0) handleType(args[0]);
+            if (args.length > 0) handleType(args[0]);
         });
         COMMANDS.put("pwd", args -> {
             System.out.println(currentPath.toAbsolutePath());
@@ -29,7 +27,7 @@ public class Main {
 
     private static void handleCd(String[] args) {
         String homeDir = System.getenv("HOME");
-        if (homeDir == null ) {
+        if (homeDir == null) {
             homeDir = System.getProperty("user.home");
         }
         String target = (args.length == 0 || args[0].equals("~")) ? homeDir : args[0];
@@ -68,6 +66,43 @@ public class Main {
         }
     }
 
+    private static List<String> parseArgs(String input) {
+        List<String> args = new ArrayList<>();
+        StringBuilder currentArg = new StringBuilder();
+
+        boolean inDoubleQuotes = false;
+        boolean inSingleQuotes = false;
+        boolean escaped = false; // Track if the previous char was '\'
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            if (escaped) {
+                // If we are here, then the previous '\' was outside quotes
+                currentArg.append(c);
+                escaped = false;
+            } else if (c == '\\' && !inDoubleQuotes && !inSingleQuotes) {
+                escaped = true;
+            } else if (c == '\'' && !inDoubleQuotes) {
+                inSingleQuotes = !inSingleQuotes;
+            } else if (c == '\"' && !inSingleQuotes) {
+                inDoubleQuotes = !inDoubleQuotes;
+            } else if (Character.isWhitespace(c) && !inDoubleQuotes && !inSingleQuotes) {
+                // Space outside quotes or escaping ends the current argument
+                if (!currentArg.isEmpty()) {
+                    args.add(currentArg.toString());
+                    currentArg.setLength(0);
+                }
+            } else {
+                currentArg.append(c);
+            }
+        }
+        // If the input string does not end with whitespace, add it as the last argument
+        if(!currentArg.isEmpty()){
+            args.add(currentArg.toString());
+        }
+        return args;
+    }
+
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
@@ -75,20 +110,10 @@ public class Main {
             System.out.print("$ ");
             String input = scanner.nextLine().trim();
             if (input.isEmpty()) continue;
-
-            // Split into command and args
-            List<String> list = new ArrayList<>();
-            // Use robust regex
-            String patternString = "([^\"]\\S*|\".+?\")\\s*";
-            Pattern pattern = Pattern.compile(patternString);
-            Matcher matcher = pattern.matcher(input);
-            while (matcher.find()) {
-                list.add(matcher.group(1).replaceAll("\"", ""));
-            }
+            List<String> list = parseArgs(input);
             String[] fullArgs = list.toArray(new String[0]);
             String cmdName = fullArgs[0];
-            String[] cmdArgs = new String[fullArgs.length - 1];
-            System.arraycopy(fullArgs, 1, cmdArgs, 0, fullArgs.length - 1);
+            String[] cmdArgs = Arrays.copyOfRange(fullArgs, 1, fullArgs.length);
 
             Command command = COMMANDS.get(cmdName);
             if (command != null) {
@@ -97,7 +122,7 @@ public class Main {
                 // Execute external program
                 File externalFile = getExecutablePath(cmdName);
                 // Search for an executable with the given name in the directories listed in PATH (just like type does)
-                if (externalFile != null)  {
+                if (externalFile != null) {
                     try {
                         // Process building
                         ProcessBuilder pb = new ProcessBuilder(fullArgs);
@@ -105,7 +130,8 @@ public class Main {
                         Process p = pb.start();
                         p.waitFor(); // Parent process blocks here
                     } catch (Exception e) {
-                        System.out.println("Error executing: " + cmdName);                    }
+                        System.out.println("Error executing: " + cmdName);
+                    }
                 } else {
                     System.out.println(cmdName + ": command not found");
                 }
